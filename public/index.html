@@ -1,0 +1,33 @@
+<!-- public/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book a Video Call</title>
+</head>
+<body>
+  <h1>Book a Video Call</h1>
+  <form id="booking-form">
+    <input type="text" id="name" placeholder="Name" required>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="datetime-local" id="date" required>
+    <button type="submit">Book</button>
+  </form>
+  <script>
+    document.getElementById('booking-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('name').value;
+      const email = document.getElementById('email').value;
+      const date = document.getElementById('date').value;
+      const response = await fetch('/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, date }),
+      });
+      const data = await response.json();
+      alert(`Booking successful! Join your call at: ${window.location.origin}${data.callUrl}`);
+    });
+  </script>
+</body>
+</html>
