@@ -14,10 +14,6 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
 /// inserted as chatGPT suggested
 const uri = process.env.MONGODB_URI;
 
-mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('Connected to MongoDB Atlas'))
-  .catch(err => console.error('MongoDB connection error:', err));
-
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
@@ -26,6 +22,8 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
+
+
 
 async function run() {
   try {
@@ -41,11 +39,8 @@ async function run() {
 }
 run().catch(console.dir);
 
-
-
-
 mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('Connected to MongoDB'))
+  .then(() => console.log('Connected to MongoDB Atlas'))
   .catch(err => console.error('MongoDB connection error:', err));
 
 // mongoose.connect('mongodb://localhost:27017/videocall', { useNewUrlParser: true, useUnifiedTopology: true });
@@ -62,27 +57,32 @@ const Booking = mongoose.model('Booking', bookingSchema);
 app.use(express.json());
 app.use(express.static('public'));
 
+// Endpoint to create a new booking and generate a call URL
 app.post('/book', async (req, res) => {
   const { name, email, date } = req.body;
-  const callUrl = `/call/${new mongoose.Types.ObjectId()}`;
+  const callUrl = `/call/${new mongoose.Types.ObjectId()}`; // Unique call URL per booking
   const booking = new Booking({ name, email, date, callUrl });
   await booking.save();
   res.json({ callUrl });
 });
 
+// Serve the call HTML page
 app.get('/call/:id', (req, res) => {
   res.sendFile(__dirname + '/public/call.html');
 });
 
+// Handle socket.io connections
 io.on('connection', (socket) => {
   socket.on('join-call', (roomId) => {
-    socket.join(roomId);
-    socket.to(roomId).emit('user-joined', socket.id);
+    socket.join(roomId); // Join the specific call room
+    socket.to(roomId).emit('user-joined', socket.id); // Notify others in the room
 
+    // Relay signaling data between users
     socket.on('signal', (data) => {
       socket.to(roomId).emit('signal', data);
     });
 
+    // Notify others when a user disconnects
     socket.on('disconnect', () => {
       socket.to(roomId).emit('user-left', socket.id);
     });

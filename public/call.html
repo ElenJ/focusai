@@ -14,7 +14,8 @@
   <script src="https://unpkg.com/simple-peer/simplepeer.min.js"></script>
   <script>
     const socket = io();
-    const roomId = window.location.pathname.split('/').pop();
+    const roomId = window.location.pathname.split('/call/')[1];
+    //const roomId = window.location.pathname.split('/').pop();
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
 
@@ -30,9 +31,23 @@
       peer.on('signal', data => {
         socket.emit('signal', { roomId, data });
       });
+      // Join the room
+      socket.emit('join-call', roomId);
 
+      // Handle incoming signals
       socket.on('signal', data => {
         peer.signal(data);
+      });
+
+      // Notify others when a user joins
+      socket.on('user-joined', userId => {
+        console.log(`User ${userId} joined the call`);
+        // Handle new user joining (e.g., create a new video element)
+      });
+      // Notify when a user leaves
+      socket.on('user-left', userId => {
+        console.log(`User ${userId} left the call`);
+        // Handle user leaving (e.g., remove their video element)
       });
 
       peer.on('stream', stream => {
