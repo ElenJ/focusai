@@ -59,7 +59,7 @@ io.on('connection', (socket) => {
     // Relay signaling data between users
     socket.on('signal', (data) => {
       console.log(`Relaying signal from ${socket.id} to room ${roomId}`);
-      socket.to(roomId).emit('signal', data);
+      socket.to(roomId).emit('signal', { userId: socket.id, signal: data.signal });
     });
 
     // Notify others when a user disconnects
