@@ -58,6 +58,7 @@ io.on('connection', (socket) => {
 
     // Relay signaling data between users
     socket.on('signal', (data) => {
+      console.log(`Relaying signal from ${socket.id} to room ${roomId}`);
       socket.to(roomId).emit('signal', data);
     });
 
