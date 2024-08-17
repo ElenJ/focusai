@@ -10,8 +10,13 @@ const io = socketIo(server);
 
 const { MongoClient, ServerApiVersion } = require('mongodb');
 //const uri = "mongodb+srv://elenajolkver:<mongoDB_password>@cluster0.drufz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-const uri = process.env.MONGODB_URI || '"mongodb+srv://elenajolkver:<mongoDB_password>@cluster0.drufz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+//const uri = process.env.MONGODB_URI || '"mongodb+srv://elenajolkver:<mongoDB_password>@cluster0.drufz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 /// inserted as chatGPT suggested
+const uri = process.env.MONGODB_URI;
+
+mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('Connected to MongoDB Atlas'))
+  .catch(err => console.error('MongoDB connection error:', err));
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -38,7 +43,7 @@ run().catch(console.dir);
 
 
 
-####
+
 mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
