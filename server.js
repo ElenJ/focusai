@@ -3,57 +3,28 @@ const mongoose = require('mongoose');
 const http = require('http');
 const socketIo = require('socket.io');
 
+// Initialize Express app
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-
-const { MongoClient, ServerApiVersion } = require('mongodb');
-//const uri = "mongodb+srv://elenajolkver:<mongoDB_password>@cluster0.drufz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-//const uri = process.env.MONGODB_URI || '"mongodb+srv://elenajolkver:<mongoDB_password>@cluster0.drufz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
-/// inserted as chatGPT suggested
+// MongoDB connection setup
 const uri = process.env.MONGODB_URI;
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
-
-
-
-async function run() {
-  try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
-  }
-}
-run().catch(console.dir);
 
 mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('Connected to MongoDB Atlas'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// mongoose.connect('mongodb://localhost:27017/videocall', { useNewUrlParser: true, useUnifiedTopology: true });
-
+// Define schema and model for bookings
 const bookingSchema = new mongoose.Schema({
   name: String,
   email: String,
   date: Date,
   callUrl: String,
 });
-
 const Booking = mongoose.model('Booking', bookingSchema);
 
+// Middleware
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -75,7 +46,10 @@ app.get('/call/:id', (req, res) => {
 io.on('connection', (socket) => {
   socket.on('join-call', (roomId) => {
     socket.join(roomId); // Join the specific call room
-    socket.to(roomId).emit('user-joined', socket.id); // Notify others in the room
+    console.log(`Socket ${socket.id} joined room ${roomId}`);
+
+    // Notify others in the room that a new user has joined
+    socket.to(roomId).emit('user-joined', socket.id);
 
     // Relay signaling data between users
     socket.on('signal', (data) => {
@@ -84,11 +58,13 @@ io.on('connection', (socket) => {
 
     // Notify others when a user disconnects
     socket.on('disconnect', () => {
+      console.log(`Socket ${socket.id} disconnected from room ${roomId}`);
       socket.to(roomId).emit('user-left', socket.id);
     });
   });
 });
 
+// Start server
 server.listen(3000, () => {
   console.log('Server is running on port 3000');
 });

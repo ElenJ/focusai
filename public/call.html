@@ -15,46 +15,51 @@
   <script>
     const socket = io();
     const roomId = window.location.pathname.split('/call/')[1];
-    //const roomId = window.location.pathname.split('/').pop();
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
+    let peer;
 
+    // Access the user's media (video/audio)
     navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+      // Show the local video stream
       localVideo.srcObject = stream;
 
-      const peer = new SimplePeer({
-        initiator: location.hash === '#init',
+      // Create a new peer connection
+      peer = new SimplePeer({
+        initiator: location.hash === '#init', // The first user to join will be the initiator
         trickle: false,
         stream: stream,
       });
 
+      // Send signaling data to the other peer
       peer.on('signal', data => {
         socket.emit('signal', { roomId, data });
       });
-      // Join the room
-      socket.emit('join-call', roomId);
 
-      // Handle incoming signals
-      socket.on('signal', data => {
+      // When a remote stream is received, show it in the remote video element
+      peer.on('stream', remoteStream => {
+        remoteVideo.srcObject = remoteStream;
+      });
+
+      // Handle incoming signals from the other peer
+      socket.on('signal', ({ data }) => {
         peer.signal(data);
       });
 
-      // Notify others when a user joins
+      // Notify others when a user joins the call
+      socket.emit('join-call', roomId);
+
+      // Log when another user joins the call
       socket.on('user-joined', userId => {
         console.log(`User ${userId} joined the call`);
-        // Handle new user joining (e.g., create a new video element)
       });
-      // Notify when a user leaves
+
+      // Log when a user leaves the call
       socket.on('user-left', userId => {
         console.log(`User ${userId} left the call`);
-        // Handle user leaving (e.g., remove their video element)
       });
-
-      peer.on('stream', stream => {
-        remoteVideo.srcObject = stream;
-      });
-
-      socket.emit('join-call', roomId);
+    }).catch(error => {
+      console.error('Error accessing media devices.', error);
     });
   </script>
 </body>
