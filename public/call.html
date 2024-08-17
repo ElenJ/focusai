@@ -19,7 +19,6 @@
 </head>
 <body>
   <h1>Video Call</h1>
-  <button id="startCall">Start Call</button>
   <video id="localVideo" autoplay muted></video>
   <div id="remoteVideos"></div>
 
@@ -29,23 +28,7 @@
     const socket = io();
     const localVideo = document.getElementById('localVideo');
     const remoteVideosContainer = document.getElementById('remoteVideos');
-    const startCallButton = document.getElementById('startCall');
     let peers = {};
-
-    function initiateCall() {
-      fetch('/book', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'User', email: 'user@example.com', date: new Date() })
-      })
-      .then(response => response.json())
-      .then(data => {
-        window.location.href = data.callUrl; // Redirect to the call URL
-      })
-      .catch(error => console.error('Error initiating call:', error));
-    }
-
-    startCallButton.addEventListener('click', initiateCall);
 
     const roomId = window.location.pathname.split('/call/')[1];
     console.log('Room ID:', roomId);
@@ -58,7 +41,24 @@
       socket.on('signal', (data) => {
         const { userId, signal } = data;
         console.log('Received signal from:', userId);
-        if (peers[userId]) {
+        if (!peers[userId]) {
+          const peer = new SimplePeer({ initiator: false, trickle: false, stream });
+          peers[userId] = peer;
+
+          peer.on('signal', data => {
+            socket.emit('signal', { roomId, userId: socket.id, signal: data });
+          });
+
+          peer.on('stream', stream => {
+            const remoteVideo = document.createElement('video');
+            remoteVideo.className = 'remoteVideo';
+            remoteVideo.autoplay = true;
+            remoteVideosContainer.appendChild(remoteVideo);
+            remoteVideo.srcObject = stream;
+          });
+
+          peer.signal(signal);
+        } else {
           peers[userId].signal(signal);
         }
       });
@@ -69,19 +69,15 @@
         peers[userId] = peer;
 
         peer.on('signal', data => {
-          socket.emit('signal', { roomId, userId, signal: data });
+          socket.emit('signal', { roomId, userId: socket.id, signal: data });
         });
 
         peer.on('stream', stream => {
           const remoteVideo = document.createElement('video');
-          remoteVideo.className = 'remoteVideo'; // Apply styling
+          remoteVideo.className = 'remoteVideo';
           remoteVideo.autoplay = true;
           remoteVideosContainer.appendChild(remoteVideo);
           remoteVideo.srcObject = stream;
-        });
-
-        peer.on('connect', () => {
-          console.log(`Peer connected: ${userId}`);
         });
       });
 
