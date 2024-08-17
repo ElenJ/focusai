@@ -48,6 +48,7 @@
     startCallButton.addEventListener('click', initiateCall);
 
     const roomId = window.location.pathname.split('/call/')[1];
+    console.log('Room ID:', roomId);
 
     navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
       localVideo.srcObject = stream;
@@ -56,13 +57,15 @@
 
       socket.on('signal', (data) => {
         const { userId, signal } = data;
+        console.log('Received signal from:', userId);
         if (peers[userId]) {
           peers[userId].signal(signal);
         }
       });
 
       socket.on('user-joined', userId => {
-        const peer = new SimplePeer({ initiator: false, trickle: false, stream });
+        console.log('User joined:', userId);
+        const peer = new SimplePeer({ initiator: true, trickle: false, stream });
         peers[userId] = peer;
 
         peer.on('signal', data => {
@@ -83,13 +86,14 @@
       });
 
       socket.on('user-left', userId => {
+        console.log('User left:', userId);
         if (peers[userId]) {
           peers[userId].destroy();
           delete peers[userId];
         }
         const videoElements = remoteVideosContainer.querySelectorAll('video');
         videoElements.forEach(video => {
-          if (video.srcObject.id === userId) {
+          if (video.srcObject && video.srcObject.id === userId) {
             video.remove();
           }
         });
