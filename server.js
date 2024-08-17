@@ -30,11 +30,16 @@ app.use(express.static('public'));
 
 // Endpoint to create a new booking and generate a call URL
 app.post('/book', async (req, res) => {
-  const { name, email, date } = req.body;
-  const callUrl = `/call/${new mongoose.Types.ObjectId()}`; // Unique call URL per booking
-  const booking = new Booking({ name, email, date, callUrl });
-  await booking.save();
-  res.json({ callUrl });
+  try {
+    const { name, email, date } = req.body;
+    const callUrl = `/call/${new mongoose.Types.ObjectId()}`; // Unique call URL per booking
+    const booking = new Booking({ name, email, date, callUrl });
+    await booking.save();
+    res.json({ callUrl });
+  } catch (error) {
+    console.error('Error creating booking:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 // Serve the call HTML page
@@ -65,6 +70,7 @@ io.on('connection', (socket) => {
 });
 
 // Start server
-server.listen(3000, () => {
-  console.log('Server is running on port 3000');
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
