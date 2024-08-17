@@ -1,66 +1,100 @@
-<!-- public/call.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Video Call</title>
+  <style>
+    #localVideo, .remoteVideo {
+      width: 300px;
+      height: 200px;
+      border: 1px solid black;
+      margin: 10px;
+    }
+    #remoteVideos {
+      display: flex;
+      flex-wrap: wrap;
+    }
+  </style>
 </head>
 <body>
   <h1>Video Call</h1>
+  <button id="startCall">Start Call</button>
   <video id="localVideo" autoplay muted></video>
-  <video id="remoteVideo" autoplay></video>
+  <div id="remoteVideos"></div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://unpkg.com/simple-peer/simplepeer.min.js"></script>
   <script>
     const socket = io();
-    const roomId = window.location.pathname.split('/call/')[1];
     const localVideo = document.getElementById('localVideo');
-    const remoteVideo = document.getElementById('remoteVideo');
-    let peer;
+    const remoteVideosContainer = document.getElementById('remoteVideos');
+    const startCallButton = document.getElementById('startCall');
+    let peers = {};
 
-    // Access the user's media (video/audio)
+    function initiateCall() {
+      fetch('/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'User', email: 'user@example.com', date: new Date() })
+      })
+      .then(response => response.json())
+      .then(data => {
+        window.location.href = data.callUrl; // Redirect to the call URL
+      })
+      .catch(error => console.error('Error initiating call:', error));
+    }
+
+    startCallButton.addEventListener('click', initiateCall);
+
+    const roomId = window.location.pathname.split('/call/')[1];
+
     navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-      // Show the local video stream
       localVideo.srcObject = stream;
 
-      // Create a new peer connection
-      peer = new SimplePeer({
-        initiator: location.hash === '#init', // The first user to join will be the initiator
-        trickle: false,
-        stream: stream,
-      });
-
-      // Send signaling data to the other peer
-      peer.on('signal', data => {
-        socket.emit('signal', { roomId, data });
-      });
-
-      // When a remote stream is received, show it in the remote video element
-      peer.on('stream', remoteStream => {
-        remoteVideo.srcObject = remoteStream;
-      });
-
-      // Handle incoming signals from the other peer
-      socket.on('signal', ({ data }) => {
-        peer.signal(data);
-      });
-
-      // Notify others when a user joins the call
       socket.emit('join-call', roomId);
 
-      // Log when another user joins the call
-      socket.on('user-joined', userId => {
-        console.log(`User ${userId} joined the call`);
+      socket.on('signal', (data) => {
+        const { userId, signal } = data;
+        if (peers[userId]) {
+          peers[userId].signal(signal);
+        }
       });
 
-      // Log when a user leaves the call
-      socket.on('user-left', userId => {
-        console.log(`User ${userId} left the call`);
+      socket.on('user-joined', userId => {
+        const peer = new SimplePeer({ initiator: false, trickle: false, stream });
+        peers[userId] = peer;
+
+        peer.on('signal', data => {
+          socket.emit('signal', { roomId, userId, signal: data });
+        });
+
+        peer.on('stream', stream => {
+          const remoteVideo = document.createElement('video');
+          remoteVideo.className = 'remoteVideo'; // Apply styling
+          remoteVideo.autoplay = true;
+          remoteVideosContainer.appendChild(remoteVideo);
+          remoteVideo.srcObject = stream;
+        });
+
+        peer.on('connect', () => {
+          console.log(`Peer connected: ${userId}`);
+        });
       });
-    }).catch(error => {
-      console.error('Error accessing media devices.', error);
-    });
+
+      socket.on('user-left', userId => {
+        if (peers[userId]) {
+          peers[userId].destroy();
+          delete peers[userId];
+        }
+        const videoElements = remoteVideosContainer.querySelectorAll('video');
+        videoElements.forEach(video => {
+          if (video.srcObject.id === userId) {
+            video.remove();
+          }
+        });
+      });
+    }).catch(error => console.error('Error getting user media:', error));
   </script>
 </body>
 </html>
